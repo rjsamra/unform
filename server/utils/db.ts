@@ -5,9 +5,6 @@ import pg from 'pg';
 let client: pg.Client | null;
 let drizzleInstance: NodePgDatabase;
 
-const isRunningLocally = () =>
-  process.env.NUXT_DB_HOST?.includes('localhost') || process.env.NUXT_DB_HOST?.includes('127.0.0.1');
-
 export async function useDatabase() {
   try {
     const config = useRuntimeConfig();
@@ -15,14 +12,13 @@ export async function useDatabase() {
 
     if (!config.db.host) throw new Error('Missing db.host in runtime config');
 
-    // Dokploy/local Postgres often has no SSL; AWS RDS usually requires it.
-    // Set NUXT_DB_SSL=false to disable, NUXT_DB_SSL=true to force enable.
-    const disableSsl = isRunningLocally() || process.env.NUXT_DB_SSL === 'false';
-    const forceSsl = process.env.NUXT_DB_SSL === 'true';
+    // SSL is opt-in. Dokploy/self-hosted Postgres usually has no SSL.
+    // Set NUXT_DB_SSL=true for providers that require it (e.g. AWS RDS).
+    const useSsl = process.env.NUXT_DB_SSL === 'true';
 
     client = new pg.Client({
       ...config.db,
-      ssl: forceSsl || !disableSsl
+      ssl: useSsl
         ? {
             rejectUnauthorized: false,
           }
